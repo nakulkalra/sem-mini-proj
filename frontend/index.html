@@ -2,30 +2,70 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Queue Management System</title>
-    <link rel="stylesheet" href="./style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Queue</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <main class="main-container">
+        <header>
+            <h1>Smart Queue</h1>
+            <p>Experience seamless service flow</p>
+            <button class="reset-btn" onclick="resetDatabase()">Reset Database</button>
+        </header>
 
-<div class="container">
-    <h1>Smart Queue System</h1>
+        <div class="layout-grid">
+            <div class="left-col">
+                <section class="card controls-card">
+                    <div class="input-group">
+                        <input type="text" id="name" placeholder="Customer Name (e.g. John Doe)" autocomplete="off">
+                        <select id="service">
+                            <option value="General">General</option>
+                            <option value="Billing">Billing</option>
+                            <option value="Support">Support</option>
+                        </select>
+                        <button class="primary-btn" onclick="addCustomer()">Add to Queue</button>
+                    </div>
+                </section>
 
-    <input type="text" id="name" placeholder="Customer Name">
-    
-    <select id="service">
-        <option value="General">General</option>
-        <option value="Billing">Billing</option>
-        <option value="Support">Support</option>
-    </select>
+                <section class="card queue-status-card">
+                    <div class="status-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Waiting</span>
+                            <span class="metric-value" id="waitingCount">0</span>
+                        </div>
+                        <button class="serve-next-btn" onclick="serveCustomer()">Serve Next</button>
+                    </div>
+                    
+                    <div class="queue-list-container">
+                        <div class="list-header">
+                            <h3>Current Queue</h3>
+                        </div>
+                        <div class="queue-list-wrapper">
+                             <ul id="queueList">
+                                 <!-- Automatically injected by JS -->
+                             </ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
 
-    <button onclick="addCustomer()">Add</button>
+            <div class="right-col">
+                <section class="card history-card">
+                    <div class="list-header">
+                        <h3>Past Customers</h3>
+                        <span class="badge" id="servedCount">0</span>
+                    </div>
+                    <div class="queue-list-wrapper">
+                         <ul id="historyList">
+                             <!-- Automatically injected by JS -->
+                         </ul>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
 
-    <h2>Queue</h2>
-    <ul id="queueList"></ul>
-
-    <button onclick="serveCustomer()">Serve Next</button>
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
