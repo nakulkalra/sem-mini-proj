@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Queue Management System</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Smart Queue System</h1>
+
+    <input type="text" id="name" placeholder="Customer Name">
+    
+    <select id="service">
+        <option value="General">General</option>
+        <option value="Billing">Billing</option>
+        <option value="Support">Support</option>
+    </select>
+
+    <button onclick="addCustomer()">Add</button>
+
+    <h2>Queue</h2>
+    <ul id="queueList"></ul>
+
+    <button onclick="serveCustomer()">Serve Next</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
