@@ -41,5 +41,5 @@ exports.up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 exports.down = (pgm) => {
-  pgm.sql(`ALTER TABLE queue DROP COLUMN IF EXISTS status;`);
+  pgm.sql(`DROP TABLE IF EXISTS queue;`);
 };

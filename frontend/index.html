@@ -7,7 +7,14 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main class="main-container">
+    <div id="errorOverlay" class="error-overlay hidden">
+        <div class="error-modal">
+            <h2>⚠️ Connection Error</h2>
+            <p>Backend server not running....</p>
+        </div>
+    </div>
+
+    <main class="main-container" id="mainContainer">
         <header>
             <h1>Smart Queue</h1>
             <p>Experience seamless service flow</p>

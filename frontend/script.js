@@ -15,6 +15,8 @@ async function fetchQueue() {
         const qData = await queueRes.json();
         const sData = await servedRes.json();
         
+        showErrorOverlay(false);
+        
         // Only re-render if data has changed to avoid animation flickering
         if (JSON.stringify(qData) !== JSON.stringify(queueData)) {
             queueData = qData;
@@ -27,6 +29,9 @@ async function fetchQueue() {
         }
     } catch (err) {
         console.error("Queue fetch error:", err);
+        if (err.message === "Failed to fetch" || err.message.includes("fetch")) {
+            showErrorOverlay(true);
+        }
     }
 }
 
@@ -136,6 +141,20 @@ async function resetDatabase() {
         fetchQueue();
     } catch (err) {
         console.error("Reset error:", err);
+    }
+}
+
+function showErrorOverlay(show) {
+    const overlay = document.getElementById("errorOverlay");
+    const container = document.getElementById("mainContainer");
+    if (!overlay || !container) return;
+    
+    if (show) {
+        overlay.classList.remove("hidden");
+        container.classList.add("blur-main");
+    } else {
+        overlay.classList.add("hidden");
+        container.classList.remove("blur-main");
     }
 }
 
