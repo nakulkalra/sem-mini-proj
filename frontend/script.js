@@ -126,11 +126,11 @@ function renderWindows() {
 
         const countdown = windowCountdowns[wid];
         const pct = current ? Math.max(0, countdown / current.order_time) : 0;
-        const circumference = 2 * Math.PI * 28; // r=28
+        const circumference = 2 * Math.PI * 44; // r=44 for new 100x100 svg
         const dashOffset = circumference * (1 - pct);
 
         const serveBtn = mode === "manual"
-            ? `<button class="btn-serve" onclick="serveWindow(${wid})" ${isIdle ? 'disabled' : ''}>Serve Next</button>`
+            ? `<button class="btn-serve ${!isIdle ? 'busy-btn' : ''}" onclick="serveWindow(${wid})" ${isIdle ? 'disabled' : ''}>Serve Next</button>`
             : '';
 
         // Sort queue for rendering based on selected algorithm
@@ -147,9 +147,9 @@ function renderWindows() {
 
             <div class="window-body">
                 <div class="countdown-ring ${isIdle ? 'idle' : ''}">
-                    <svg viewBox="0 0 64 64" class="ring-svg">
-                        <circle cx="32" cy="32" r="28" class="ring-bg"/>
-                        <circle cx="32" cy="32" r="28" class="ring-fill"
+                    <svg viewBox="0 0 100 100" class="ring-svg">
+                        <circle cx="50" cy="50" r="44" class="ring-bg"/>
+                        <circle cx="50" cy="50" r="44" class="ring-fill"
                             stroke-dasharray="${circumference}"
                             stroke-dashoffset="${dashOffset}"
                             style="transition: stroke-dashoffset 0.9s linear;"/>
@@ -165,9 +165,8 @@ function renderWindows() {
 
                 ${current ? `
                 <div class="current-customer">
-                    <span class="now-serving">Now Serving</span>
                     <div class="customer-chip ${current.priority === 'vip' ? 'vip' : ''}">
-                        ${current.priority === 'vip' ? '⭐ ' : ''}${escapeHTML(current.name)}
+                        ${current.priority === 'vip' ? '✨ ' : ''}${escapeHTML(current.name)}
                         <span class="chip-service">${escapeHTML(current.service)}</span>
                     </div>
                 </div>` : '<div class="no-customer">No active customer</div>'}
@@ -389,7 +388,8 @@ function updateCountdownRings() {
         const current = windowsData.find(w => w.window_id === wid)?.current;
         if (!current) continue;
 
-        const circumference = 2 * Math.PI * 28;
+        // updated to match new 100x100 SVG where r=44
+        const circumference = 2 * Math.PI * 44;
         const pct = Math.max(0, windowCountdowns[wid] / current.order_time);
         const dashOffset = circumference * (1 - pct);
 
