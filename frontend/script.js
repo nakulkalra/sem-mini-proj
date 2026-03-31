@@ -189,18 +189,12 @@ function renderAvatarsInQueues() {
 function createOrGetAvatar(cust) {
     let el = avatars[cust.id];
     let isNew = false;
+    const prefix = cust.token.split('-')[0].toLowerCase();
+    
     if (!el) {
         el = document.createElement("div");
-        const prefix = cust.token.split('-')[0].toLowerCase();
-        
-        let isChained = false;
-        try {
-            const wf = typeof cust.workflow === 'string' ? JSON.parse(cust.workflow) : cust.workflow;
-            if (wf && Array.isArray(wf) && wf.length > 0) isChained = true;
-        } catch(e) {}
-
-        el.className = `avatar-token token-${prefix} ${cust.priority === 'vip' ? 'vip-token' : ''} ${isChained ? 'chained-token' : ''}`;
-        el.innerHTML = `<span>${cust.token}</span>${isChained ? '<div class="chain-indicator" title="Multi-Step"></div>' : ''}`;
+        el.className = `avatar-token token-${prefix} ${cust.priority === 'vip' ? 'vip-token' : ''}`;
+        el.innerHTML = `<span>${cust.token}</span>`;
         document.getElementById("walkingArea").appendChild(el);
         avatars[cust.id] = el;
         
@@ -211,6 +205,31 @@ function createOrGetAvatar(cust) {
         el.style.transform = "scale(0.8)";
         isNew = true;
     }
+    
+    // Dynamic State Updates (runs during polling)
+    let isChained = false;
+    let workflowText = '';
+    try {
+        const wf = typeof cust.workflow === 'string' ? JSON.parse(cust.workflow) : cust.workflow;
+        if (wf && Array.isArray(wf) && wf.length > 0) {
+            isChained = true;
+            workflowText = 'Next: ' + wf.join(' ➔ ');
+        }
+    } catch(e) {}
+
+    const currentInd = el.querySelector('.chain-indicator');
+    if (isChained) {
+        if (!currentInd) {
+            el.insertAdjacentHTML('beforeend', `<div class="chain-indicator" title="${workflowText}"></div>`);
+            el.classList.add('chained-token');
+        } else if (currentInd.title !== workflowText) {
+            currentInd.title = workflowText; // Refresh tooltip as they progress through branches!
+        }
+    } else if (currentInd) {
+        currentInd.remove();
+        el.classList.remove('chained-token');
+    }
+
     if (isNew) {
         setTimeout(() => {
             el.style.opacity = "1";
