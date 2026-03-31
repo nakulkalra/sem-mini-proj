@@ -7,7 +7,7 @@ import type { Window as QueueWindow } from '../hooks/useQueueSimulation';
 interface CounterDeskProps {
   window: QueueWindow;
   mode: 'manual' | 'auto';
-  timerState?: { cur: number; max: number };
+  timerState?: { cur: number; max: number; is_calling?: boolean };
   onServe: (wid: number) => void;
   onToggle: (wid: number, isOffline: boolean) => void;
   onDelete: (wid: number) => void;
@@ -113,15 +113,20 @@ export function CounterDesk({
       {!w.is_offline && (
         <>
           <div className="progress-label">
-            <span>Est. Time</span>
-            <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700 }}>
+            <span style={{ color: timerState?.is_calling ? 'var(--danger)' : 'inherit' }}>
+              {timerState?.is_calling ? 'Awaiting Check-in' : 'Est. Time'}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: timerState?.is_calling ? 'var(--danger)' : 'inherit' }}>
               {timeLeft !== null && timerState ? `${timeLeft}s` : '--'}
             </span>
           </div>
-          <div className="progress-track">
+          <div className="progress-track" style={{ background: timerState?.is_calling ? 'rgba(220,38,38,0.15)' : 'rgba(0,0,0,0.08)' }}>
             <div
-              className="progress-fill"
-              style={{ width: `${pct}%` }}
+              className={`progress-fill`}
+              style={{ 
+                width: `${pct}%`,
+                background: timerState?.is_calling ? 'linear-gradient(90deg, var(--danger), #fca5a5)' : undefined 
+              }}
             />
           </div>
         </>

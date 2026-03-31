@@ -259,6 +259,14 @@ app.get("/windows", async (req, res) => {
         for (const c of counters) {
             const waitingResult = await db.query(`SELECT * FROM queue WHERE status = 'waiting' AND window_id = $1 ORDER BY CASE WHEN priority = 'vip' THEN 0 ELSE 1 END ASC, id ASC`, [c.id]);
             const rows = waitingResult.rows;
+            let current = rows[0] || null;
+            
+            // Mark virtual customer as 'called_at = NOW()' if they reach the front of the queue
+            if (current && current.is_virtual && !current.checked_in && !current.called_at) {
+                await db.query(`UPDATE queue SET called_at = NOW() WHERE id = $1`, [current.id]);
+                current.called_at = new Date().toISOString();
+            }
+
             const responseQueueTokens = rows.map(r => `${r.token} (${r.priority})`);
             console.log(`Window ${c.id} queue: `, responseQueueTokens);
 
@@ -283,6 +291,23 @@ async function processServe(windowId, counters) {
         try { workflow = JSON.parse(workflow); } catch (e) { workflow = []; }
     }
     
+    // Virtual handling: skip or re-queue if unchecked
+    if (row.is_virtual && !row.checked_in) {
+        if (row.called_at) {
+            const calledAt = new Date(row.called_at).getTime();
+            if (Date.now() - calledAt >= 15000) {
+                // Timer expired -> move to back of the line
+                await db.query(`DELETE FROM queue WHERE id = $1`, [row.id]);
+                await db.query(`INSERT INTO queue (name, service, priority, status, window_id, order_time, wait_time, token, workflow, is_virtual) VALUES ($1, $2, $3, 'waiting', $4, $5, $6, $7, $8, $9)`, 
+                    [row.name, row.service, row.priority, row.window_id, row.order_time, row.wait_time, row.token, JSON.stringify(workflow), true]);
+                // Process the next valid person
+                return await processServe(windowId, counters);
+            }
+        }
+        // Still calling, do nothing
+        return { ...row, chained_handoff: false, is_calling: true };
+    }
+
     if (workflow.length > 0) {
         // Handoff logic (Customer physically moves to a new desk)
         const nextService = workflow.shift();
@@ -359,6 +384,60 @@ app.post("/reset", async (req, res) => {
         await db.query("UPDATE counters SET time_saved = 0");
         Object.keys(tokenCounters).forEach(k => tokenCounters[k] = 1);
         res.json({ message: "Database reset successfully" });
+    } catch (err) { res.status(500).json({ error: "Error" }); }
+});
+
+app.post("/book", async (req, res) => {
+    try {
+        let { name, service = "Cash Deposit", priority = "normal" } = req.body;
+        if (!name) name = "Virtual Client";
+        if (!SERVICES[service]) service = 'Cash Deposit';
+        const srvDef = SERVICES[service];
+        const order_time = getRandomTime(srvDef.min, srvDef.max);
+        const tokenStr = `${srvDef.prefix}-${tokenCounters[srvDef.prefix].toString().padStart(3, '0')}`;
+        tokenCounters[srvDef.prefix]++;
+
+        const counters = await getCounters();
+        const capableCounters = await getCapableCounters(service, priority, counters);
+
+        if (capableCounters.length === 0) return res.status(400).json({ error: "No available capable counters" });
+
+        let assignedWindow = null; let minWait = Infinity;
+        for (const c of capableCounters) {
+            const wt = await computeWaitTime(c.id, priority);
+            if (wt < minWait) { minWait = wt; assignedWindow = c.id; }
+        }
+        if (!assignedWindow) assignedWindow = capableCounters[0].id;
+
+        const wait_time = await computeWaitTime(assignedWindow, priority);
+        const sql = `INSERT INTO queue (name, service, priority, status, window_id, order_time, wait_time, token, is_virtual) VALUES ($1, $2, $3, 'waiting', $4, $5, $6, $7, true) RETURNING *`;
+        const result = await db.query(sql, [name, service, priority, assignedWindow, order_time, wait_time, tokenStr]);
+        
+        counters.filter(c => !c.is_offline).forEach(c => attemptRebalance(c.id));
+        
+        res.status(201).json({ customer: result.rows[0], assigned_window: assignedWindow });
+    } catch (err) { console.error(err); res.status(500).json({ error: "Server Error" }); }
+});
+
+app.get("/queue-item/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const result = await db.query("SELECT * FROM queue WHERE id = $1", [id]);
+        if (result.rowCount === 0) return res.status(404).json({error: "Not found"});
+        const item = result.rows[0];
+        
+        const waiting = await db.query("SELECT id FROM queue WHERE status = 'waiting' AND window_id = $1 ORDER BY CASE WHEN priority = 'vip' THEN 0 ELSE 1 END ASC, id ASC", [item.window_id]);
+        const pos = waiting.rows.findIndex(r => r.id === id) + 1;
+        
+        res.json({ item, position: pos });
+    } catch (err) { res.status(500).json({ error: "Error" }); }
+});
+
+app.post("/checkin/:id", async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        await db.query("UPDATE queue SET checked_in = true WHERE id = $1", [id]);
+        res.json({ success: true });
     } catch (err) { res.status(500).json({ error: "Error" }); }
 });
 

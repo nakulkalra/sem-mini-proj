@@ -15,6 +15,9 @@ export interface Customer {
   order_time: number;
   wait_time: number;
   workflow?: string | string[];
+  is_virtual?: boolean;
+  called_at?: string;
+  checked_in?: boolean;
 }
 
 export interface Window {
@@ -49,7 +52,7 @@ export function useQueueSimulation() {
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: string }[]>([]);
 
   // Timer states for progress bars
-  const counterTimers = useRef<Record<number, { cur: number; max: number; customer_id: number }>>({});
+  const counterTimers = useRef<Record<number, { cur: number; max: number; customer_id: number; is_calling?: boolean }>>({});
   const [timerTick, setTimerTick] = useState(0);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -88,11 +91,26 @@ export function useQueueSimulation() {
       wins.forEach(w => {
         if (!w.is_offline && w.current) {
           const existing = counterTimers.current[w.window_id];
-          if (!existing || existing.customer_id !== w.current.id) {
+          const c = w.current;
+          let targetMax = c.order_time;
+          let currentCur = c.order_time;
+          let isCalling = false;
+
+          if (c.is_virtual && !c.checked_in && c.called_at) {
+             const elapsedSecs = Math.floor((Date.now() - new Date(c.called_at).getTime()) / 1000);
+             let remain = 15 - elapsedSecs;
+             if (remain < 0) remain = 0;
+             targetMax = 15;
+             currentCur = remain;
+             isCalling = true;
+          }
+
+          if (!existing || existing.customer_id !== c.id || existing.is_calling !== isCalling) {
             counterTimers.current[w.window_id] = {
-              cur: w.current.order_time,
-              max: w.current.order_time,
-              customer_id: w.current.id,
+              cur: currentCur,
+              max: targetMax,
+              customer_id: c.id,
+              is_calling: isCalling
             };
           }
         } else if (w.is_offline || !w.current) {

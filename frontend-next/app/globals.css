@@ -969,3 +969,12 @@ html, body {
 .counter-desk.paused .progress-fill {
   animation: none;
 }
+
+@keyframes calling-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+.calling-pulse-bg {
+  animation: calling-pulse 1.5s infinite;
+}
