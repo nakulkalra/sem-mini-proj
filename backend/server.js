@@ -68,15 +68,16 @@ async function attemptRebalance(emptyWindowId) {
 
     // Trigger stealing if we have less than 2 people (so at most 1 active person getting served, and 0 waiting behind)
     const checkEmpty = await db.query("SELECT COUNT(*) FROM queue WHERE status = 'waiting' AND window_id = $1", [emptyWindowId]);
-    if (parseInt(checkEmpty.rows[0].count) >= 2) return;
+    const emptyLen = parseInt(checkEmpty.rows[0].count);
+    if (emptyLen >= 2) return;
 
-    const placeholders = targetDesk.services.map((_, i) => `$${i + 2}`).join(", ");
+    const placeholders = targetDesk.services.map((_, i) => `$${i + 3}`).join(',');
     
-    // Make sure we steal from a desk that has at least 3 people, so we don't drain them completely either
-    const stealQuery = `SELECT q.id, q.window_id FROM queue q JOIN (SELECT window_id, COUNT(*) as q_len FROM queue WHERE status = 'waiting' AND window_id != $1 GROUP BY window_id HAVING COUNT(*) > 2) busy_desks ON q.window_id = busy_desks.window_id WHERE q.status = 'waiting' AND q.service IN (${placeholders}) ORDER BY busy_desks.q_len DESC, CASE WHEN q.priority = 'vip' THEN 0 ELSE 1 END ASC, q.id DESC LIMIT 1`;
+    // Mathematically perfect stealing threshold: Target must have at least (Current + 2) people to guarantee a net balance improvement
+    const stealQuery = `SELECT q.id, q.window_id FROM queue q JOIN (SELECT window_id, COUNT(*) as q_len FROM queue WHERE status = 'waiting' AND window_id != $1 GROUP BY window_id HAVING COUNT(*) >= $2) busy_desks ON q.window_id = busy_desks.window_id WHERE q.status = 'waiting' AND q.service IN (${placeholders}) ORDER BY busy_desks.q_len DESC, CASE WHEN q.priority = 'vip' THEN 0 ELSE 1 END ASC, q.id DESC LIMIT 1`;
     
     try {
-        const stealable = await db.query(stealQuery, [emptyWindowId, ...targetDesk.services]);
+        const stealable = await db.query(stealQuery, [emptyWindowId, emptyLen + 2, ...targetDesk.services]);
         if (stealable.rows.length > 0) {
             const stolenId = stealable.rows[0].id;
             
