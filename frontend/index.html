@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Queue — Multi-Window Simulation</title>
-    <meta name="description" content="A multi-window food order queue management simulation with VIP priority, algorithm comparison, and real-time analytics.">
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -17,7 +15,6 @@
             <div class="error-icon">⚠️</div>
             <h2>Connection Error</h2>
             <p>Backend server not running on port 5000</p>
-            <p class="error-sub">Run <code>node server.js</code> in the backend folder</p>
         </div>
     </div>
 
@@ -26,156 +23,95 @@
 
     <div class="app-layout" id="mainContainer">
 
-        <!-- ══════════ SIDEBAR ══════════ -->
+        <!-- ══════════ SIDEBAR (CONTROLS) ══════════ -->
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-icon">🍽️</div>
+                <div class="brand-icon">🏦</div>
                 <div>
                     <h1>SmartQueue</h1>
-                    <p>Food Order Simulation</p>
+                    <p>Bank Simulation</p>
                 </div>
             </div>
 
-            <!-- Add Customer -->
+            <!-- Add Client -->
             <section class="sidebar-card" id="addCustomerCard">
-                <h3 class="card-title">➕ New Customer</h3>
+                <h3 class="card-title">➕ Walk-in Client</h3>
                 <div class="input-stack">
-                    <input type="text" id="name" placeholder="Customer name..." autocomplete="off">
+                    <button class="btn-random" onclick="spawnRandomClient()" id="randomBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                        Spawn Random
+                    </button>
+                    <div class="or-divider"><span>MANUAL ENTRY</span></div>
                     <select id="service">
-                        <option value="General">🍔 General (30s)</option>
-                        <option value="Billing">💳 Billing (60s)</option>
-                        <option value="Support">🎧 Support (90s)</option>
+                        <option value="Cash Deposit">💵 Cash Deposit</option>
+                        <option value="Cash Withdrawal">💸 Cash Withdrawal</option>
+                        <option value="Account Services">📁 Account Services</option>
+                        <option value="Loan Inquiry">🏡 Loan Inquiry</option>
+                        <option value="Priority Service">⭐ Priority Service</option>
                     </select>
                     <div class="priority-toggle">
                         <button class="priority-btn" id="priorityBtn" onclick="togglePriority()" data-vip="false">
                             <span class="priority-icon">☆</span>
-                            <span class="priority-label">Normal</span>
+                            <span class="priority-label">Regular Priority</span>
                         </button>
                     </div>
-                    <button class="btn-primary" onclick="addCustomer()" id="addBtn">Smart Assign</button>
+                    <button class="btn-primary" onclick="addCustomer()" id="addBtn">Add to Queue</button>
                 </div>
             </section>
 
             <!-- Simulation Controls -->
             <section class="sidebar-card">
-                <h3 class="card-title">⚙️ Simulation</h3>
+                <h3 class="card-title">⚙️ Control Panel</h3>
                 <div class="control-row">
-                    <span class="control-label">Mode</span>
+                    <span class="control-label">Simulation Mode</span>
                     <div class="toggle-pill">
                         <button class="toggle-opt active" id="modeManual" onclick="setMode('manual')">Manual</button>
                         <button class="toggle-opt" id="modeAuto" onclick="setMode('auto')">Auto</button>
                     </div>
                 </div>
                 <div class="control-row">
-                    <span class="control-label">Speed</span>
+                    <span class="control-label">Tick Speed</span>
                     <div class="speed-btns">
                         <button class="speed-btn active" onclick="setSpeed(1)" data-speed="1">1×</button>
                         <button class="speed-btn" onclick="setSpeed(2)" data-speed="2">2×</button>
                         <button class="speed-btn" onclick="setSpeed(5)" data-speed="5">5×</button>
-                        <button class="speed-btn" onclick="setSpeed(10)" data-speed="10">10×</button>
-                    </div>
-                </div>
-                <div class="control-row">
-                    <span class="control-label">Algorithm</span>
-                    <select class="algo-select" id="algoSelect" onchange="setAlgorithm(this.value)">
-                        <option value="fifo">FIFO (First In, First Out)</option>
-                        <option value="priority">Priority (VIP First)</option>
-                        <option value="sjf">SJF (Shortest Job First)</option>
-                    </select>
-                </div>
-                <div class="control-row" id="abandonRow">
-                    <span class="control-label">Abandon after</span>
-                    <div class="abandon-input">
-                        <input type="number" id="abandonThreshold" value="180" min="30" max="600" step="30">
-                        <span>sec</span>
                     </div>
                 </div>
                 <div class="sim-actions">
                     <button class="btn-pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
-                    <button class="btn-danger-sm" onclick="resetDatabase()">↺ Reset</button>
+                    <button class="btn-danger-sm" onclick="resetDatabase()">↺ Reset Data</button>
                 </div>
             </section>
 
-            <!-- Stats -->
+            <!-- Live Stats -->
             <section class="sidebar-card">
-                <h3 class="card-title">📊 Live Stats</h3>
+                <h3 class="card-title">📊 Analytics Overview</h3>
                 <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-val" id="statServed">0</span>
-                        <span class="stat-lbl">Served</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-val" id="statWaiting">0</span>
-                        <span class="stat-lbl">Waiting</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-val" id="statAbandoned">0</span>
-                        <span class="stat-lbl">Abandoned</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-val" id="statAvgWait">0s</span>
-                        <span class="stat-lbl">Avg Wait</span>
-                    </div>
-                </div>
-                <div class="busiest-window">
-                    <span class="stat-lbl">Busiest Window</span>
-                    <span class="stat-badge" id="statBusiest">—</span>
-                </div>
-            </section>
-
-            <!-- Algorithm Comparison -->
-            <section class="sidebar-card" id="algoCompareCard">
-                <h3 class="card-title">🔬 Algorithm Comparison</h3>
-                <p class="algo-note">Simulated on current queue state</p>
-                <div class="algo-table">
-                    <div class="algo-row algo-header">
-                        <span>Algorithm</span><span>Avg Wait</span><span>Next Up</span>
-                    </div>
-                    <div class="algo-row" id="algoFIFO">
-                        <span class="algo-name fifo">FIFO</span><span id="fifoWait">—</span><span id="fifoNext">—</span>
-                    </div>
-                    <div class="algo-row" id="algoPriority">
-                        <span class="algo-name prio">Priority</span><span id="prioWait">—</span><span id="prioNext">—</span>
-                    </div>
-                    <div class="algo-row" id="algoSJF">
-                        <span class="algo-name sjf">SJF</span><span id="sjfWait">—</span><span id="sjfNext">—</span>
-                    </div>
+                    <div class="stat-item"><span class="stat-val" id="statServed">0</span><span class="stat-lbl">Served</span></div>
+                    <div class="stat-item"><span class="stat-val" id="statWaiting">0</span><span class="stat-lbl">Waiting</span></div>
+                    <div class="stat-item" style="grid-column: span 2;"><span class="stat-val" id="statAvgWait">0s</span><span class="stat-lbl">Average Wait Time</span></div>
                 </div>
             </section>
         </aside>
 
-        <!-- ══════════ MAIN CONTENT ══════════ -->
-        <main class="main-content">
-
-            <!-- Top bar -->
-            <div class="topbar">
-                <div class="sim-clock">
-                    <span class="clock-dot" id="clockDot"></span>
-                    <span id="simClock">00:00</span>
-                    <span class="clock-label" id="clockLabel">RUNNING</span>
+        <!-- ══════════ MAIN LOBBY FLOOR ══════════ -->
+        <main class="lobby-floor" id="lobbyFloor">
+            <!-- Digital Display -->
+            <div class="board-container">
+                <div class="announcer-board" id="announcerBoard">
+                    <span class="board-title">NOW SERVING</span>
+                    <span class="ann-token">AWAITING</span>
+                    <span class="ann-dest">NEXT CLIENT</span>
                 </div>
-                <div class="algo-badge" id="algoBadge">FIFO</div>
             </div>
 
-            <!-- 3 Window Cards -->
-            <div class="windows-grid" id="windowsGrid">
-                <!-- Injected by JS -->
+            <!-- Bank Floor: Desks and Queues -->
+            <div class="bank-floor">
+                <!-- Counters dynamically injected -->
+                <div class="counters-row" id="countersRow"></div>
+                <!-- Moving component container -->
+                <div class="walking-area" id="walkingArea"></div>
             </div>
-
-            <!-- History -->
-            <section class="history-section">
-                <div class="section-header">
-                    <h3>📋 Service History</h3>
-                    <div class="history-filters">
-                        <span class="filter-badge served-badge">Served <span id="histServedCount">0</span></span>
-                        <span class="filter-badge abandoned-badge">Abandoned <span id="histAbandonedCount">0</span></span>
-                    </div>
-                </div>
-                <div class="history-list" id="historyList">
-                    <div class="empty-state">No service history yet.</div>
-                </div>
-            </section>
-
         </main>
     </div>
 
