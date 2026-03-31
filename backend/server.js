@@ -202,6 +202,20 @@ app.post("/random", async (req, res) => {
         for (let i = 0; i < count; i++) {
             const randomService = supportedServices[Math.floor(Math.random() * supportedServices.length)];
             const priority = (Math.random() < 0.15) ? 'vip' : 'normal';
+            
+            // Generate workflow (25% chance of chained tasks)
+            let workflow = [];
+            if (Math.random() < 0.25 && supportedServices.length > 1) {
+                const possibleNext = supportedServices.filter(s => s !== randomService);
+                const nextService = possibleNext[Math.floor(Math.random() * possibleNext.length)];
+                workflow.push(nextService);
+                // 10% chance of a 3-step workflow
+                if (Math.random() < 0.1 && possibleNext.length > 1) {
+                    const thirdPossible = possibleNext.filter(s => s !== nextService);
+                    workflow.push(thirdPossible[Math.floor(Math.random() * thirdPossible.length)]);
+                }
+            }
+            
             // Fallback just in case
             const srvDef = SERVICES[randomService] || SERVICES['Cash Deposit'];
             const order_time = getRandomTime(srvDef.min, srvDef.max);
@@ -219,8 +233,8 @@ app.post("/random", async (req, res) => {
             if (!assignedWindow) assignedWindow = capableCounters[0].id;
 
             const wait_time = await computeWaitTime(assignedWindow, priority);
-            const sql = `INSERT INTO queue (name, service, priority, status, window_id, order_time, wait_time, token) VALUES ($1, $2, $3, 'waiting', $4, $5, $6, $7) RETURNING *`;
-            const result = await db.query(sql, ["Random Spawn", randomService, priority, assignedWindow, order_time, wait_time, tokenStr]);
+            const sql = `INSERT INTO queue (name, service, priority, status, window_id, order_time, wait_time, token, workflow) VALUES ($1, $2, $3, 'waiting', $4, $5, $6, $7, $8) RETURNING *`;
+            const result = await db.query(sql, ["Random Spawn", randomService, priority, assignedWindow, order_time, wait_time, tokenStr, JSON.stringify(workflow)]);
             totalGenerated.push(result.rows[0]);
         }
         
@@ -258,18 +272,50 @@ app.get("/windows", async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Error" }); }
 });
 
+async function processServe(windowId, counters) {
+    const qRes = await db.query(`SELECT * FROM queue WHERE status = 'waiting' AND window_id = $1 ORDER BY CASE WHEN priority = 'vip' THEN 0 ELSE 1 END ASC, id ASC LIMIT 1`, [windowId]);
+    if (qRes.rowCount === 0) return null;
+    const row = qRes.rows[0];
+    
+    // Parse workflow array robustly
+    let workflow = row.workflow || [];
+    if (typeof workflow === 'string') {
+        try { workflow = JSON.parse(workflow); } catch (e) { workflow = []; }
+    }
+    
+    if (workflow.length > 0) {
+        // Handoff logic (Customer physically moves to a new desk)
+        const nextService = workflow.shift();
+        const capableCounters = await getCapableCounters(nextService, 'vip', counters);
+        let assignedWindow = capableCounters.length > 0 ? capableCounters[0].id : windowId; // Fallback
+        
+        let minWait = Infinity;
+        for (const c of capableCounters) {
+            const wt = await computeWaitTime(c.id, 'vip');
+            if (wt < minWait) { minWait = wt; assignedWindow = c.id; }
+        }
+        
+        await db.query(`UPDATE queue SET service = $1, workflow = $2, window_id = $3, priority = 'vip' WHERE id = $4`, [nextService, JSON.stringify(workflow), assignedWindow, row.id]);
+        return { ...row, chained_handoff: true, nextWindowId: assignedWindow };
+    } else {
+        // Traditional completion
+        await db.query(`UPDATE queue SET status = 'served', served_at = NOW() WHERE id = $1`, [row.id]);
+        return { ...row, chained_handoff: false };
+    }
+}
+
 app.post("/serve/:windowId", async (req, res) => {
     try {
         const windowId = parseInt(req.params.windowId);
-        const cRes = await db.query("SELECT is_offline FROM counters WHERE id = $1", [windowId]);
-        if (cRes.rowCount === 0 || cRes.rows[0].is_offline) return res.status(400).json({ message: "Counter offline" });
+        const counters = await getCounters();
+        const cDesk = counters.find(c => c.id === windowId);
+        if (!cDesk || cDesk.is_offline) return res.status(400).json({ message: "Counter offline" });
 
-        const sql = `UPDATE queue SET status = 'served', served_at = NOW() WHERE id = (SELECT id FROM queue WHERE status = 'waiting' AND window_id = $1 ORDER BY CASE WHEN priority = 'vip' THEN 0 ELSE 1 END ASC, id ASC LIMIT 1) RETURNING *`;
-        const result = await db.query(sql, [windowId]);
+        const servedCustomer = await processServe(windowId, counters);
         
         await attemptRebalance(windowId);
-        if (result.rowCount === 0) return res.status(404).json({ message: "No customers waiting" });
-        res.json({ message: "Served", customer: result.rows[0] });
+        if (!servedCustomer) return res.status(404).json({ message: "No customers waiting" });
+        res.json({ message: "Served", customer: servedCustomer });
     } catch (err) { console.error(err); res.status(500).json({ error: "Error" }); }
 });
 
@@ -279,9 +325,8 @@ app.post("/auto-advance", async (req, res) => {
         const counters = await getCounters();
         for (const c of counters) {
             if (c.is_offline) continue;
-            const sql = `UPDATE queue SET status = 'served', served_at = NOW() WHERE id = (SELECT id FROM queue WHERE status = 'waiting' AND window_id = $1 ORDER BY CASE WHEN priority = 'vip' THEN 0 ELSE 1 END ASC, id ASC LIMIT 1) RETURNING *`;
-            const result = await db.query(sql, [c.id]);
-            if (result.rowCount > 0) served.push(result.rows[0]);
+            const servedCustomer = await processServe(c.id, counters);
+            if (servedCustomer) served.push(servedCustomer);
             await attemptRebalance(c.id);
         }
         res.json({ message: "Auto advanced", served });

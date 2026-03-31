@@ -192,8 +192,15 @@ function createOrGetAvatar(cust) {
     if (!el) {
         el = document.createElement("div");
         const prefix = cust.token.split('-')[0].toLowerCase();
-        el.className = `avatar-token token-${prefix} ${cust.priority === 'vip' ? 'vip-token' : ''}`;
-        el.textContent = cust.token;
+        
+        let isChained = false;
+        try {
+            const wf = typeof cust.workflow === 'string' ? JSON.parse(cust.workflow) : cust.workflow;
+            if (wf && Array.isArray(wf) && wf.length > 0) isChained = true;
+        } catch(e) {}
+
+        el.className = `avatar-token token-${prefix} ${cust.priority === 'vip' ? 'vip-token' : ''} ${isChained ? 'chained-token' : ''}`;
+        el.innerHTML = `<span>${cust.token}</span>${isChained ? '<div class="chain-indicator" title="Multi-Step"></div>' : ''}`;
         document.getElementById("walkingArea").appendChild(el);
         avatars[cust.id] = el;
         
