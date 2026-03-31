@@ -1,4 +1,4 @@
-const API = "http://localhost:5000";
+const API = "";
 
 let countersData = [];
 let queueData = [];
@@ -32,7 +32,6 @@ async function fetchAll() {
         renderCounters();
         renderAvatarsInQueues();
         updateStats();
-        checkAnnouncements();
         document.getElementById("errorOverlay").classList.add("hidden");
     } catch (e) {
         document.getElementById("errorOverlay").classList.remove("hidden");
@@ -55,22 +54,34 @@ function renderCounters() {
             const div = document.createElement("div");
             div.className = `counter-desk ${c.type === 'vip' ? 'vip-theme' : ''}`;
             div.id = `counter-desk-${c.window_id}`;
+            div.style.position = 'relative';
             div.innerHTML = `
-                <div class="desk-id">${c.name}</div>
-                <div class="desk-type">${c.services.join(' &bull; ')}</div>
+                <div class="time-saved-badge" style="position:absolute; top:-12px; right:-12px; background:linear-gradient(135deg, #10b981, #059669); color:#fff; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:800; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); opacity: ${c.time_saved > 0 ? 1 : 0}; transition: opacity 0.5s; z-index:100; display:flex; gap:6px; align-items:center;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="m17 5-5-3-5 3"></path></svg>
+                    Saved: ${c.time_saved}s
+                </div>
+                <div class="desk-id" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                    <span>${c.name}</span>
+                    <button class="btn-delete" onclick="deleteDesk(${c.window_id})" style="background:none; border:none; color:rgba(239,68,68,0.7); cursor:pointer; font-size:24px; transition:0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='rgba(239,68,68,0.7)'">&times;</button>
+                </div>
+                <div class="desk-type">
+                    ${c.services.map(s => `<span class="service-tag">${s}</span>`).join('')}
+                </div>
+                
+                <div class="serving-slot"></div>
                 
                 <button class="btn-toggle-desk ${c.is_offline ? 'is-offline' : ''}" onclick="toggleCounter(${c.window_id}, ${!c.is_offline})">
                     ${c.is_offline ? '🔴 Offline' : '🟢 Online'}
                 </button>
-                <div class="desk-time-wrap" style="display:flex; justify-content:space-between; width:100%; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; opacity: ${c.is_offline ? '0' : '1'}">
+                <div class="desk-progress-container" style="opacity: ${c.is_offline ? '0' : '1'}">
                     <span>Est. Time</span>
                     <span id="time-${c.window_id}">--s</span>
                 </div>
                 <div class="desk-progress" style="opacity: ${c.is_offline ? '0.5' : '1'}">
                     <div class="desk-progress-bar" id="prog-${c.window_id}"></div>
                 </div>
-                <div style="margin-top:16px; width:100%;" id="serve-btn-${c.window_id}">
-                    ${mode === 'manual' ? `<button class="btn-primary" onclick="serveWindow(${c.window_id})" style="width:100%;font-size:13px;padding:10px;" ${c.is_offline ? 'disabled style="opacity:0.5"' : ''}>Serve Next</button>` : ''}
+                <div style="margin-top:auto; width:100%;" id="serve-btn-${c.window_id}">
+                    ${mode === 'manual' ? `<button class="btn-primary" onclick="serveWindow(${c.window_id})" ${c.is_offline ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>Serve Next</button>` : ''}
                 </div>
             `;
             row.appendChild(div);
@@ -79,7 +90,17 @@ function renderCounters() {
         countersData.forEach(c => {
             const div = document.getElementById(`counter-desk-${c.window_id}`);
             if (div) {
-                div.className = `counter-desk ${c.type === 'vip' ? 'vip-theme' : ''} ${c.is_offline ? 'offline' : ''}`;
+                div.className = `counter-desk ${c.type === 'vip' ? 'vip-theme' : ''}`;
+                if (c.is_offline) div.classList.add('offline');
+                else div.classList.remove('offline');
+                
+                // Dynamically update the time saved metric badge
+                const badge = div.querySelector('.time-saved-badge');
+                if (badge) {
+                    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="m17 5-5-3-5 3"></path></svg>Saved: ${c.time_saved}s`;
+                    badge.style.opacity = c.time_saved > 0 ? "1" : "0";
+                }
+                
                 const btn = div.querySelector('.btn-toggle-desk');
                 btn.className = `btn-toggle-desk ${c.is_offline ? 'is-offline' : ''}`;
                 btn.textContent = c.is_offline ? '🔴 Offline' : '🟢 Online';
@@ -104,10 +125,7 @@ function renderAvatarsInQueues() {
     const expected = new Set();
     const floorRect = document.querySelector(".bank-floor").getBoundingClientRect();
 
-    // Group waiters by window
-    const queuesByWindow = {};
-    countersData.forEach(c => { queuesByWindow[c.window_id] = []; });
-    queueData.forEach(q => { if(queuesByWindow[q.window_id]) queuesByWindow[q.window_id].push(q); });
+    // Cleaned up old queuing arrays
 
     countersData.forEach(c => {
         const deskEl = document.getElementById(`counter-desk-${c.window_id}`);
@@ -122,13 +140,23 @@ function renderAvatarsInQueues() {
             expected.add(c.current.id.toString());
             let el = createOrGetAvatar(c.current);
             el.classList.add('is-serving');
-            el.style.left = (centerX - 35) + "px"; // 35 is half avatar width 70px
-            el.style.top = (deskRect.top - floorRect.top + 70) + "px"; // Shift down into desk div
+            
+            // Mathematically anchor perfectly into the center of the .serving-slot DOM element
+            const slotNode = deskEl.querySelector('.serving-slot');
+            if (slotNode) {
+                const slotRect = slotNode.getBoundingClientRect();
+                const targetY = slotRect.top - floorRect.top + (slotRect.height / 2) - 35;
+                el.style.left = (centerX - 35) + "px";
+                el.style.top = targetY + "px";
+            } else {
+                el.style.left = (centerX - 35) + "px";
+                el.style.top = (deskRect.top - floorRect.top + 90) + "px";
+            }
         }
 
         // 2. Waiting Queue forming a line downwards BELOW the desk
         const deskBottomY = deskRect.bottom - floorRect.top + 20;
-        const sortedLine = queuesByWindow[c.window_id].sort((a,b) => a.id - b.id);
+        const sortedLine = c.queue.slice(1);
         
         sortedLine.forEach((qCust, idx) => {
             expected.add(qCust.id.toString());
@@ -153,7 +181,7 @@ function renderAvatarsInQueues() {
     });
 
     // Increase floor min height dynamically if queues grow very long
-    const longestLine = Math.max(...Object.values(queuesByWindow).map(arr => arr.length));
+    const longestLine = Math.max(...countersData.map(c => c.queue.length), 0);
     const requiredHeight = 400 + (longestLine * 84); // 400 is desk height + clearance
     document.querySelector(".bank-floor").style.minHeight = requiredHeight + "px";
 }
@@ -185,22 +213,7 @@ function createOrGetAvatar(cust) {
     return el;
 }
 
-function checkAnnouncements() {
-    countersData.forEach(c => {
-        if (c.current && c.current.id !== c._lastAnnounced) {
-            c._lastAnnounced = c.current.id;
-            triggerAnnouncement(c.current.token, c.name);
-        }
-    });
-}
-
-function triggerAnnouncement(token, destName) {
-    const board = document.getElementById("announcerBoard");
-    board.querySelector(".ann-token").textContent = token;
-    board.querySelector(".ann-dest").textContent = `PLEASE PROCEED TO ${destName.toUpperCase()}`;
-    board.classList.add("flash");
-    setTimeout(() => { board.classList.remove("flash"); }, 2000);
-}
+// App logic for queues
 
 function updateStats() {
     document.getElementById("statServed").textContent = simStats.total_served || 0;
@@ -241,9 +254,56 @@ async function addCustomer() {
 }
 
 async function spawnRandomClient() {
+    const count = parseInt(document.getElementById("randomCount").value) || 1;
     try {
-        const res = await fetch(API + "/random", { method: "POST" });
-        if (res.ok) fetchAll();
+        const res = await fetch(API + "/random", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ count: count })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`Spawned ${data.added} clients!`, "success");
+            fetchAll();
+        }
+    } catch(e){}
+}
+
+async function createNewDesk() {
+    const nameStr = document.getElementById("newDeskName").value.trim();
+    if (!nameStr) return showToast("Enter a desk name", "danger");
+
+    const boxes = document.querySelectorAll('.cb-service:checked');
+    const checkedServices = Array.from(boxes).map(b => b.value);
+    
+    if (checkedServices.length === 0) return showToast("Select at least one service", "danger");
+
+    const deskType = checkedServices.includes('Priority Service') ? 'vip' : 'standard';
+
+    try {
+        const res = await fetch(API + "/counters", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: nameStr, type: deskType, services: checkedServices })
+        });
+        if (res.ok) {
+            showToast("New Desk Added!", "success");
+            document.getElementById("newDeskName").value = "";
+            boxes.forEach(b => b.checked = false);
+            // Force full UI re-render for new element insertion
+            document.getElementById("countersRow").innerHTML = ""; 
+            fetchAll();
+        }
+    } catch(e){}
+}
+
+async function deleteDesk(wid) {
+    if (!confirm("Permanently delete this desk? Its queue will be forcibly re-routed.")) return;
+    try {
+        const res = await fetch(API + `/counters/${wid}`, { method: "DELETE" });
+        if (res.ok) {
+            showToast("Desk removed & queue re-routed visually", "danger");
+            document.getElementById("countersRow").innerHTML = "";
+            fetchAll();
+        }
     } catch(e){}
 }
 

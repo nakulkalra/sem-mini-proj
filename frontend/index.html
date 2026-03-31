@@ -37,10 +37,13 @@
             <section class="sidebar-card" id="addCustomerCard">
                 <h3 class="card-title">➕ Walk-in Client</h3>
                 <div class="input-stack">
-                    <button class="btn-random" onclick="spawnRandomClient()" id="randomBtn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                        Spawn Random
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="randomCount" value="1" min="1" max="50" style="width: 60px; padding: 10px; border-radius: 12px; border: 1px solid var(--border); text-align: center; font-weight: 600;">
+                        <button class="btn-random" onclick="spawnRandomClient()" id="randomBtn" style="flex: 1;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                            Spawn Random
+                        </button>
+                    </div>
                     <div class="or-divider"><span>MANUAL ENTRY</span></div>
                     <select id="service">
                         <option value="Cash Deposit">💵 Cash Deposit</option>
@@ -56,6 +59,23 @@
                         </button>
                     </div>
                     <button class="btn-primary" onclick="addCustomer()" id="addBtn">Add to Queue</button>
+                </div>
+            </section>
+
+            <!-- Desk Configuration -->
+            <section class="sidebar-card">
+                <h3 class="card-title">🖥️ Desk Config</h3>
+                <div class="input-stack">
+                    <input type="text" id="newDeskName" placeholder="New Desk Name" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-weight:500;">
+                    <div style="display:flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--text-muted); font-weight: 700;">
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="Cash Deposit"> Cash Deposit</label>
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="Cash Withdrawal"> Cash Withdrawal</label>
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="Account Services"> Account Services</label>
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="Loan Inquiry"> Loan Inquiry</label>
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="Priority Service"> Priority Service</label>
+                        <label style="display:flex;gap:6px;"><input type="checkbox" class="cb-service" value="New Account"> New Account</label>
+                    </div>
+                    <button class="btn-primary" onclick="createNewDesk()" style="padding: 10px; font-size: 12px; background: #0f172a;">+ Add Desk</button>
                 </div>
             </section>
 
@@ -96,14 +116,6 @@
 
         <!-- ══════════ MAIN LOBBY FLOOR ══════════ -->
         <main class="lobby-floor" id="lobbyFloor">
-            <!-- Digital Display -->
-            <div class="board-container">
-                <div class="announcer-board" id="announcerBoard">
-                    <span class="board-title">NOW SERVING</span>
-                    <span class="ann-token">AWAITING</span>
-                    <span class="ann-dest">NEXT CLIENT</span>
-                </div>
-            </div>
 
             <!-- Bank Floor: Desks and Queues -->
             <div class="bank-floor">
