@@ -137,8 +137,10 @@ export function useQueueSimulation() {
       const wid = parseInt(widStr);
       const state = counterTimers.current[wid];
       if (state.cur > 0) { state.cur -= 1; changed = true; }
-      if (modeRef.current === 'auto' && state.cur <= 0) {
-        serveWindow(wid);
+      if (state.cur <= 0) {
+        if (modeRef.current === 'auto' || state.is_calling) {
+          serveWindow(wid);
+        }
       }
     });
     if (changed) setTimerTick(t => t + 1);

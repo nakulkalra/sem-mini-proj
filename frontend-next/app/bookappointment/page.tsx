@@ -17,6 +17,16 @@ const SERVICE_ICONS: Record<string, string> = {
   'New Account': '✨'
 };
 
+function formatTime(secs: number) {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m < 60) return `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  const mRem = m % 60;
+  return `${h}h ${mRem}m`;
+}
+
 export default function BookAppointmentPage() {
   const { customer, position, error, bookingForm, bookAppointment, checkIn } = useVirtualBooking();
   const [name, setName] = useState('');
@@ -31,6 +41,7 @@ export default function BookAppointmentPage() {
   const isCalled = !!(customer?.called_at && !customer?.checked_in);
   // Status 'served' acts as completed or skipped
   const isServed = customer?.status === 'served' || customer?.status === 'completed';
+  const isAbandoned = customer?.status === 'abandoned';
 
   const [timeLeft, setTimeLeft] = useState(15);
   useEffect(() => {
@@ -92,7 +103,16 @@ export default function BookAppointmentPage() {
                 <div style={{ fontSize: 64 }}>✅</div>
                 <div>
                    <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--success)', marginBottom: 8 }}>All Done!</h2>
-                   <p style={{ color: 'var(--text-muted)' }}>Your turn has completed or expired. Thank you for using SmartQueue.</p>
+                   <p style={{ color: 'var(--text-muted)' }}>Your turn has completed. Thank you for using SmartQueue.</p>
+                </div>
+                <button onClick={() => window.location.reload()} className="btn btn-ghost btn-full" style={{ height: 48 }}>Book Another Appointment</button>
+            </div>
+        ) : isAbandoned ? (
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ fontSize: 64 }}>❌</div>
+                <div>
+                   <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)', marginBottom: 8 }}>Turn Missed</h2>
+                   <p style={{ color: 'var(--text-muted)' }}>You did not check in within the 15-second window. Your reservation has been cancelled.</p>
                 </div>
                 <button onClick={() => window.location.reload()} className="btn btn-ghost btn-full" style={{ height: 48 }}>Book Another Appointment</button>
             </div>
@@ -136,7 +156,7 @@ export default function BookAppointmentPage() {
                        <div style={{ width: 1, background: 'var(--border)' }}></div>
                        <div>
                            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Wait Time</div>
-                           <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>~{customer?.wait_time}s</div>
+                           <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>~{customer ? formatTime(customer.wait_time) : '--'}</div>
                        </div>
                    </div>
                       <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 16, lineHeight: 1.5 }}>

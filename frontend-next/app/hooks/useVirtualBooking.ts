@@ -49,7 +49,7 @@ export function useVirtualBooking() {
   }, [customer?.id]);
 
   useEffect(() => {
-    if (bookingForm || !customer || customer.status === 'served') return;
+    if (bookingForm || !customer || customer.status === 'served' || customer.status === 'abandoned') return;
     const int = setInterval(fetchStatus, 1000);
     fetchStatus();
     return () => clearInterval(int);

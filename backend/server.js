@@ -296,10 +296,8 @@ async function processServe(windowId, counters) {
         if (row.called_at) {
             const calledAt = new Date(row.called_at).getTime();
             if (Date.now() - calledAt >= 15000) {
-                // Timer expired -> move to back of the line
-                await db.query(`DELETE FROM queue WHERE id = $1`, [row.id]);
-                await db.query(`INSERT INTO queue (name, service, priority, status, window_id, order_time, wait_time, token, workflow, is_virtual) VALUES ($1, $2, $3, 'waiting', $4, $5, $6, $7, $8, $9)`, 
-                    [row.name, row.service, row.priority, row.window_id, row.order_time, row.wait_time, row.token, JSON.stringify(workflow), true]);
+                // Timer expired -> remove from queue (mark abandoned)
+                await db.query(`UPDATE queue SET status = 'abandoned', abandoned_at = NOW() WHERE id = $1`, [row.id]);
                 // Process the next valid person
                 return await processServe(windowId, counters);
             }

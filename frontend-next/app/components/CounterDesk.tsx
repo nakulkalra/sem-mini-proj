@@ -13,6 +13,16 @@ interface CounterDeskProps {
   onDelete: (wid: number) => void;
 }
 
+function formatTime(secs: number) {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m < 60) return `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  const mRem = m % 60;
+  return `${h}h ${mRem}m`;
+}
+
 export function CounterDesk({
   window: w,
   mode,
@@ -40,7 +50,7 @@ export function CounterDesk({
       {/* Time-saved badge */}
       {w.time_saved > 0 && (
         <div className="time-saved-badge visible">
-          ↑ Saved {w.time_saved}s
+          ↑ Saved {formatTime(w.time_saved)}
         </div>
       )}
 
@@ -77,9 +87,9 @@ export function CounterDesk({
           <div className="info-section">
             <h4>Stats</h4>
             <div className="info-metrics">
-              <div><span>Time Saved:</span> <strong>{w.time_saved}s</strong></div>
+              <div><span>Time Saved:</span> <strong>{formatTime(w.time_saved)}</strong></div>
               <div><span>Queue Load:</span> <strong>{w.queue_length}</strong></div>
-              <div><span>Total Wait:</span> <strong>{w.total_wait}s</strong></div>
+              <div><span>Total Wait:</span> <strong>{formatTime(w.total_wait)}</strong></div>
             </div>
           </div>
         </div>
@@ -117,7 +127,7 @@ export function CounterDesk({
               {timerState?.is_calling ? 'Awaiting Check-in' : 'Est. Time'}
             </span>
             <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 700, color: timerState?.is_calling ? 'var(--danger)' : 'inherit' }}>
-              {timeLeft !== null && timerState ? `${timeLeft}s` : '--'}
+              {timeLeft !== null && timerState ? formatTime(timeLeft) : '--'}
             </span>
           </div>
           <div className="progress-track" style={{ background: timerState?.is_calling ? 'rgba(220,38,38,0.15)' : 'rgba(0,0,0,0.08)' }}>

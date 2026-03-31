@@ -32,23 +32,26 @@ export function AvatarFloor({ windows, containerRef }: AvatarFloorProps) {
     return { isChained: false, text: '' };
   };
 
-  const createOrGetAvatar = useCallback((cust: Customer): HTMLDivElement => {
+  const createOrGetAvatar = useCallback((cust: Customer, isServing: boolean): HTMLDivElement => {
     const existing = avatars.current[cust.id];
+    const { isChained, text: chainText } = getWorkflowText(cust.workflow);
+    const showChain = isChained && isServing;
+    const tooltipText = showChain ? `Service: ${cust.service} | ${chainText}` : `Service: ${cust.service}`;
+
     if (existing) {
       // Update tooltip content
-      const { isChained, text: chainText } = getWorkflowText(cust.workflow);
       const tooltip = existing.el.querySelector('.avatar-tooltip');
       if (tooltip) {
-        tooltip.textContent = isChained ? chainText : `Service: ${cust.service}`;
+        tooltip.textContent = tooltipText;
       }
 
       const indicator = existing.el.querySelector('.chain-indicator');
-      if (isChained && !indicator) {
+      if (showChain && !indicator) {
         const ind = document.createElement('div');
         ind.className = 'chain-indicator';
         ind.title = chainText;
         existing.el.appendChild(ind);
-      } else if (!isChained && indicator) {
+      } else if (!showChain && indicator) {
         indicator.remove();
       }
       return existing.el;
@@ -71,17 +74,16 @@ export function AvatarFloor({ windows, containerRef }: AvatarFloorProps) {
       el.appendChild(sub);
     }
 
-    const { isChained, text: chainText } = getWorkflowText(cust.workflow);
-    
     // Add Tooltip
     const tooltip = document.createElement('div');
     tooltip.className = 'avatar-tooltip';
-    tooltip.textContent = isChained ? chainText : `Service: ${cust.service}`;
+    tooltip.textContent = tooltipText;
     el.appendChild(tooltip);
 
-    if (isChained) {
+    if (showChain) {
       const ind = document.createElement('div');
       ind.className = 'chain-indicator';
+      ind.title = chainText;
       el.appendChild(ind);
     }
 
@@ -120,7 +122,7 @@ export function AvatarFloor({ windows, containerRef }: AvatarFloorProps) {
       // Current customer (in serving slot)
       if (w.current) {
         expected.add(w.current.id.toString());
-        const el = createOrGetAvatar(w.current);
+        const el = createOrGetAvatar(w.current, true);
         el.classList.add('is-serving');
 
         const slotEl = deskEl.querySelector<HTMLElement>('.serving-slot');
@@ -137,7 +139,7 @@ export function AvatarFloor({ windows, containerRef }: AvatarFloorProps) {
       const line = w.queue.slice(1);
       line.forEach((cust, idx) => {
         expected.add(cust.id.toString());
-        const el = createOrGetAvatar(cust);
+        const el = createOrGetAvatar(cust, false);
         el.classList.remove('is-serving');
         el.style.left = `${centerX - 34}px`;
         el.style.top = `${deskBottom + idx * 82}px`;
